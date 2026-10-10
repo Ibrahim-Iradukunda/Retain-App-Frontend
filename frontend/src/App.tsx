@@ -271,7 +271,7 @@ function App() {
           ) : (
             <>
               <div className="page-heading">
-                <div><p className="eyebrow">{page === "overview" ? "YOUR MONEY, IN VIEW" : "YOUR MONEY, ORGANIZED"}</p><h1>{page === "overview" ? <>Good {greetingName}, <span className="heading-light">here’s your month.</span></> : "Every little detail."}</h1><p className="heading-sub">{page === "overview" ? "A clear picture of where your money is going." : "Search and sort your spending, one line at a time."}</p></div>
+                <div><p className="eyebrow">{page === "overview" ? "YOUR MONEY, IN VIEW" : "YOUR MONEY, ORGANIZED"}</p><h1>{page === "overview" ? <>Welcome {greetingName}, <span className="heading-light">here’s your month.</span></> : "Every little detail."}</h1><p className="heading-sub">{page === "overview" ? "A clear picture of where your money is going." : "Search and sort your spending, one line at a time."}</p></div>
                 <div className="heading-actions">
                   <div className="month-picker"><button aria-label="Previous month" onClick={() => changeMonth(-1)}><ArrowLeft size={15} /></button><span>{monthLabel(month.year, month.month)}</span><button aria-label="Next month" onClick={() => changeMonth(1)}><ArrowRight size={15} /></button></div>
                   <button className="button-primary" onClick={() => openNewExpense()}><Plus size={16} />Add expense</button>
