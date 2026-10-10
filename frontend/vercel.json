@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/_backend/:path*",
+      "destination": "https://retain-app-backend.onrender.com/:path*"
+    }
+  ]
+}
