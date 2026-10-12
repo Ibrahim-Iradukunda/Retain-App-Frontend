@@ -25,6 +25,30 @@ export type Dashboard = {
   byCategory: { category: string; color: string; total: number; count: number }[];
   recentExpenses: Expense[];
 };
+export type CategoryInsight = {
+  category: string;
+  color: string;
+  total: number;
+  count: number;
+};
+export type AdminInsights = {
+  registeredUsers: number;
+  expenseCount: number;
+  totalSpending: number;
+  currentMonthExpenseCount: number;
+  topCategories: CategoryInsight[];
+  bottomCategories: CategoryInsight[];
+  categoryStats: CategoryInsight[];
+  recentUsers: { _id: string; name: string; email: string }[];
+  recentExpenses: {
+    _id: string;
+    title: string;
+    amount: number;
+    user?: { name: string };
+    category?: { name: string };
+    createdAt: string;
+  }[];
+};
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number) {

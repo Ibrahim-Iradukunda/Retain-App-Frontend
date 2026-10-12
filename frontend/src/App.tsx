@@ -6,7 +6,7 @@ import {
   LogOut, Plus, Search, Settings2, ShieldCheck, SlidersHorizontal, Sparkles,
   Tag, Trash2, TrendingUp, Wallet, X
 } from "lucide-react";
-import { api, currency, monthLabel, type Category, type Dashboard, type Expense, type User } from "./api";
+import { api, currency, monthLabel, type AdminInsights, type Category, type Dashboard, type Expense, type User } from "./api";
 
 type AuthResponse = { token: string; user: User };
 type ExpenseList = { expenses: Expense[]; pagination: { page: number; limit: number; total: number; pages: number } };
@@ -48,7 +48,7 @@ function App() {
   const [budgetInput, setBudgetInput] = useState("");
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
-  const [admin, setAdmin] = useState<Record<string, unknown> | null>(null);
+  const [admin, setAdmin] = useState<AdminInsights | null>(null);
 
   const showError = (error: unknown) => {
     setNotice(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -200,9 +200,10 @@ function App() {
   }
 
   async function loadAdmin() {
+    if (user?.role !== "admin") return;
     try {
       const [result] = await Promise.all([
-        api<Record<string, unknown>>("/admin/insights"),
+        api<AdminInsights>("/admin/insights"),
         loadCategories()
       ]);
       setAdmin(result);
@@ -346,12 +347,34 @@ function BudgetsPage({ dashboard, month, changeMonth, onEdit, onAdd }: { dashboa
     <section className="section-block budget-categories"><div className="section-heading"><div><h2>Your spending by category</h2><p>See what’s making up your month.</p></div></div><CategorySection categories={dashboard?.byCategory ?? []} total={dashboard?.totalSpent ?? 0} month={month} /></section></>;
 }
 
-function AdminPage({ data, categories, onRefresh, onError }: { data: Record<string, unknown> | null; categories: Category[]; onRefresh: () => Promise<void>; onError: (error: unknown) => void }) {
+function AdminPage({ data, categories, onRefresh, onError }: { data: AdminInsights | null; categories: Category[]; onRefresh: () => Promise<void>; onError: (error: unknown) => void }) {
   if (!data) return <div className="empty-state"><strong>Loading platform insights…</strong></div>;
-  const categoryStats = data.categoryStats as Dashboard["byCategory"] | undefined;
-  const recentUsers = data.recentUsers as { _id: string; name: string; email: string }[] | undefined;
-  const recentExpenses = data.recentExpenses as { _id: string; title: string; amount: number; user?: { name: string }; category?: { name: string }; createdAt: string }[] | undefined;
-  return <><div className="page-heading"><div><p className="eyebrow">PLATFORM OVERVIEW</p><h1>Good morning, <span className="heading-light">admin.</span></h1><p className="heading-sub">A thoughtful overview of what’s happening across Retain.</p></div></div><div className="overview-grid admin-stats"><article className="summary-card"><div className="card-top"><span className="card-label">Registered users</span><span className="soft-icon green-soft"><ShieldCheck size={17} /></span></div><strong className="big-number">{String(data.registeredUsers ?? 0)}</strong><div className="card-bottom"><span className="subtle-text">Across the platform</span></div></article><article className="summary-card"><div className="card-top"><span className="card-label">Total expenses</span><span className="soft-icon peach-soft"><CreditCard size={17} /></span></div><strong className="big-number">{String(data.expenseCount ?? 0)}</strong><div className="card-bottom"><span className="subtle-text">All user accounts</span></div></article><article className="summary-card"><div className="card-top"><span className="card-label">Total spending recorded</span><span className="soft-icon green-soft"><TrendingUp size={17} /></span></div><strong className="big-number">{currency(Number(data.totalSpending ?? 0))}</strong><div className="card-bottom"><span className="subtle-text">Across all transactions</span></div></article></div><section className="section-block"><div className="section-heading"><div><h2>Most-used categories</h2><p>Platform-wide spending by category.</p></div></div><div className="category-grid">{categoryStats?.map(category => <div className="category-card" key={category.category}><div className="category-card-title"><i style={{ background: category.color }} />{category.category}</div><strong>{currency(category.total)}</strong><span>{category.count} expenses</span></div>)}</div></section><section className="section-block"><div className="section-heading"><div><h2>Expense categories</h2><p>Keep the options useful and easy to browse.</p></div></div><CategoryManagement categories={categories} onRefresh={onRefresh} onError={onError} /></section><section className="section-block"><div className="section-heading"><div><h2>Recently joined</h2><p>The latest people to make Retain their own.</p></div></div><div className="table-wrap"><table><thead><tr><th>NAME</th><th>EMAIL</th></tr></thead><tbody>{recentUsers?.map(person => <tr key={person._id}><td><strong>{person.name}</strong></td><td className="date-cell">{person.email}</td></tr>)}</tbody></table></div></section><section className="section-block"><div className="section-heading"><div><h2>Recently added expenses</h2><p>Latest activity across all accounts.</p></div></div><div className="table-wrap"><table><thead><tr><th>DESCRIPTION</th><th>USER</th><th>CATEGORY</th><th>ADDED</th><th className="amount-col">AMOUNT</th></tr></thead><tbody>{recentExpenses?.map(expense => <tr key={expense._id}><td><strong>{expense.title}</strong></td><td>{expense.user?.name ?? "Unknown user"}</td><td>{expense.category?.name ?? "Uncategorized"}</td><td className="date-cell">{new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(expense.createdAt))}</td><td className="amount-col"><strong className="amount-value">{currency(expense.amount)}</strong></td></tr>)}</tbody></table></div></section></>;
+  return <>
+    <div className="page-heading"><div><p className="eyebrow">PLATFORM OVERVIEW</p><h1>Good morning, <span className="heading-light">admin.</span></h1><p className="heading-sub">A thoughtful overview of what’s happening across Retain.</p></div></div>
+    <div className="overview-grid admin-stats">
+      <article className="summary-card"><div className="card-top"><span className="card-label">Registered users</span><span className="soft-icon green-soft"><ShieldCheck size={17} /></span></div><strong className="big-number">{data.registeredUsers}</strong><div className="card-bottom"><span className="subtle-text">Across the platform</span></div></article>
+      <article className="summary-card"><div className="card-top"><span className="card-label">Total expenses</span><span className="soft-icon peach-soft"><CreditCard size={17} /></span></div><strong className="big-number">{data.expenseCount}</strong><div className="card-bottom"><span className="subtle-text">All user accounts</span></div></article>
+      <article className="summary-card"><div className="card-top"><span className="card-label">Total spending recorded</span><span className="soft-icon green-soft"><TrendingUp size={17} /></span></div><strong className="big-number">{currency(data.totalSpending)}</strong><div className="card-bottom"><span className="subtle-text">Across all transactions</span></div></article>
+      <article className="summary-card"><div className="card-top"><span className="card-label">Expenses this month</span><span className="soft-icon peach-soft"><Clock3 size={17} /></span></div><strong className="big-number">{data.currentMonthExpenseCount}</strong><div className="card-bottom"><span className="subtle-text">Recorded during the current month</span></div></article>
+    </div>
+    <AdminCategorySection title="Spending by category" description="Total platform spending for each category." categories={data.categoryStats} />
+    <AdminCategorySection title="Top five categories" description="The five most-used categories, ranked by expense count." categories={data.topCategories.slice(0, 5)} />
+    <AdminCategorySection title="Bottom five categories" description="The five least-used categories, including categories with no expenses." categories={data.bottomCategories.slice(0, 5)} />
+    <section className="section-block"><div className="section-heading"><div><h2>Expense categories</h2><p>Keep the options useful and easy to browse.</p></div></div><CategoryManagement categories={categories} onRefresh={onRefresh} onError={onError} /></section>
+    <section className="section-block"><div className="section-heading"><div><h2>Recently joined</h2><p>The latest people to make Retain their own.</p></div></div><div className="table-wrap"><table><thead><tr><th>NAME</th><th>EMAIL</th></tr></thead><tbody>{data.recentUsers.map(person => <tr key={person._id}><td><strong>{person.name}</strong></td><td className="date-cell">{person.email}</td></tr>)}</tbody></table></div></section>
+    <section className="section-block"><div className="section-heading"><div><h2>Recently added expenses</h2><p>Latest activity across all accounts.</p></div></div><div className="table-wrap"><table><thead><tr><th>DESCRIPTION</th><th>USER</th><th>CATEGORY</th><th>ADDED</th><th className="amount-col">AMOUNT</th></tr></thead><tbody>{data.recentExpenses.map(expense => <tr key={expense._id}><td><strong>{expense.title}</strong></td><td>{expense.user?.name ?? "Unknown user"}</td><td>{expense.category?.name ?? "Uncategorized"}</td><td className="date-cell">{new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(expense.createdAt))}</td><td className="amount-col"><strong className="amount-value">{currency(expense.amount)}</strong></td></tr>)}</tbody></table></div></section>
+  </>;
+}
+
+function AdminCategorySection({ title, description, categories }: { title: string; description: string; categories: AdminInsights["categoryStats"] }) {
+  return <section className="section-block">
+    <div className="section-heading"><div><h2>{title}</h2><p>{description}</p></div></div>
+    <div className="category-grid">{categories.map(category => <div className="category-card" key={category.category}>
+      <div className="category-card-title"><i style={{ background: category.color }} />{category.category}</div>
+      <strong>{currency(category.total)}</strong>
+      <span>{category.count} {category.count === 1 ? "expense" : "expenses"}</span>
+    </div>)}</div>
+  </section>;
 }
 
 function CategoryManagement({ categories, onRefresh, onError }: { categories: Category[]; onRefresh: () => Promise<void>; onError: (error: unknown) => void }) {
