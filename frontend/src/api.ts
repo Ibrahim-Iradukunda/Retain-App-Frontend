@@ -58,6 +58,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  // Route requests through the configured backend and attach the current session JWT when available.
   const token = localStorage.getItem("retain-token");
   const response = await fetch(`${API_URL}${path}`, {
     ...options,

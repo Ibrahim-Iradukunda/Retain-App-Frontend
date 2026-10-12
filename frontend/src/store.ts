@@ -23,6 +23,7 @@ const initialState: ExpenseFilters = {
   sort: "date"
 };
 
+// Redux keeps search, filter, and sort choices together for consistent UI controls and API queries.
 const expenseFiltersSlice = createSlice({
   name: "expenseFilters",
   initialState,

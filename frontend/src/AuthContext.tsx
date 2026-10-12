@@ -11,6 +11,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// Shares the signed-in user, role, and JWT across the app, restoring or clearing the session as needed.
 function readStoredUser(): User | null {
   try {
     return JSON.parse(localStorage.getItem("retain-user") ?? "null") as User | null;
