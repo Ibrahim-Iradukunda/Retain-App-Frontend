@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import {
   ArrowDownLeft, ArrowDownUp, ArrowLeft, ArrowRight, ArrowUpRight, Bell,
   CircleHelp, Clock3, CreditCard, LayoutDashboard,
@@ -7,6 +8,20 @@ import {
   Tag, Trash2, TrendingUp, Wallet, X
 } from "lucide-react";
 import { api, currency, monthLabel, type AdminInsights, type Category, type Dashboard, type Expense, type User } from "./api";
+import { useAuth } from "./AuthContext";
+import {
+  resetExpenseFilters,
+  setFilterCategory,
+  setFilterFrom,
+  setFilterMaxAmount,
+  setFilterMethod,
+  setFilterMinAmount,
+  setFilterTo,
+  setSearch,
+  setSort,
+  type AppDispatch,
+  type RootState
+} from "./store";
 
 type AuthResponse = { token: string; user: User };
 type ExpenseList = { expenses: Expense[]; pagination: { page: number; limit: number; total: number; pages: number } };
@@ -19,13 +34,10 @@ const blankExpense = {
 };
 
 function App() {
-  const [user, setUser] = useState<User | null>(() => {
-    try {
-      return JSON.parse(localStorage.getItem("retain-user") ?? "null") as User | null;
-    } catch {
-      return null;
-    }
-  });
+  const { user, token, signIn: setAuth, signOut: clearAuth } = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
+  const { search, filterCategory, filterMethod, filterFrom, filterTo, filterMinAmount, filterMaxAmount, sort } =
+    useSelector((state: RootState) => state.expenseFilters);
   const [page, setPage] = useState<"overview" | "transactions" | "budgets" | "admin">("overview");
   const [month, setMonth] = useState(initialMonth);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
@@ -35,20 +47,13 @@ function App() {
   const [notice, setNotice] = useState("");
   const [modal, setModal] = useState<"expense" | "budget" | null>(null);
   const [editing, setEditing] = useState<Expense | null>(null);
-  const [search, setSearch] = useState("");
-  const [filterCategory, setFilterCategory] = useState("");
-  const [filterMethod, setFilterMethod] = useState("");
-  const [filterFrom, setFilterFrom] = useState("");
-  const [filterTo, setFilterTo] = useState("");
-  const [filterMinAmount, setFilterMinAmount] = useState("");
-  const [filterMaxAmount, setFilterMaxAmount] = useState("");
-  const [sort, setSort] = useState<"date" | "amount">("date");
   const [pageNumber, setPageNumber] = useState(1);
   const [form, setForm] = useState(blankExpense);
   const [budgetInput, setBudgetInput] = useState("");
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [admin, setAdmin] = useState<AdminInsights | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const showError = (error: unknown) => {
     setNotice(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -99,11 +104,7 @@ function App() {
   }, [user, loadCategories, loadDashboard, loadExpenses]);
 
   useEffect(() => { void loadPage(); }, [loadPage]);
-  useEffect(() => {
-    const expire = () => setUser(null);
-    window.addEventListener("retain:unauthorized", expire);
-    return () => window.removeEventListener("retain:unauthorized", expire);
-  }, []);
+  useEffect(() => { setAuthReady(true); }, []);
   useEffect(() => {
     if (!notice) return;
     const timer = window.setTimeout(() => setNotice(""), 4500);
@@ -128,18 +129,15 @@ function App() {
         method: "POST",
         body: JSON.stringify(authForm)
       });
-      localStorage.setItem("retain-token", result.token);
-      localStorage.setItem("retain-user", JSON.stringify(result.user));
-      setUser(result.user);
+      setAuth(result.token, result.user);
     } catch (error) {
       showError(error);
     }
   }
 
   function signOut() {
-    localStorage.removeItem("retain-token");
-    localStorage.removeItem("retain-user");
-    setUser(null);
+    clearAuth();
+    dispatch(resetExpenseFilters());
     setDashboard(null);
     setExpenses(null);
     setPage("overview");
@@ -200,10 +198,12 @@ function App() {
   }
 
   async function loadAdmin() {
-    if (user?.role !== "admin") return;
+    if (user?.role !== "admin" || !token) return;
     try {
       const [result] = await Promise.all([
-        api<AdminInsights>("/admin/insights"),
+        api<AdminInsights>("/admin/insights", {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
         loadCategories()
       ]);
       setAdmin(result);
@@ -212,6 +212,8 @@ function App() {
       showError(error);
     }
   }
+
+  if (!authReady) return null;
 
   if (!user) {
     return (
@@ -266,7 +268,9 @@ function App() {
         </header>
         <div className="content">
           {page === "admin" ? (
+            <AdminRoute>
             <AdminPage data={admin} categories={categories} onRefresh={loadAdmin} onError={showError} />
+            </AdminRoute>
           ) : page === "budgets" ? (
             <BudgetsPage dashboard={dashboard} month={month} changeMonth={changeMonth} onEdit={() => { setBudgetInput(String(dashboard?.budget || "")); setModal("budget"); }} onAdd={() => openNewExpense()} />
           ) : (
@@ -280,15 +284,15 @@ function App() {
               </div>
               {page === "overview" && <OverviewCards dashboard={dashboard} budgetPercent={budgetPercent} onBudget={() => { setBudgetInput(String(dashboard?.budget || "")); setModal("budget"); }} />}
               <section className="section-block">
-                <div className="section-heading"><div><h2>{page === "overview" ? "Recent transactions" : "All transactions"} <span className="count-pill">{expenses?.pagination.total ?? 0}</span></h2><p>{page === "overview" ? "The latest activity in your account." : "Your personal spending history."}</p></div><div className="table-actions"><div className="search-box"><Search size={15} /><input aria-label="Search expenses" placeholder="Search expenses..." value={search} onChange={e => setSearch(e.target.value)} /></div>{page === "transactions" && <button className="filter-button" onClick={() => setFilterCategory(filterCategory ? "" : categories[0]?._id ?? "")}><SlidersHorizontal size={15} />Filter</button>}{page === "overview" && <button className="text-link" onClick={() => setPage("transactions")}>View all <ArrowRight size={14} /></button>}</div></div>
+                <div className="section-heading"><div><h2>{page === "overview" ? "Recent transactions" : "All transactions"} <span className="count-pill">{expenses?.pagination.total ?? 0}</span></h2><p>{page === "overview" ? "The latest activity in your account." : "Your personal spending history."}</p></div><div className="table-actions"><div className="search-box"><Search size={15} /><input aria-label="Search expenses" placeholder="Search expenses..." value={search} onChange={e => dispatch(setSearch(e.target.value))} /></div>{page === "transactions" && <button className="filter-button" onClick={() => dispatch(setFilterCategory(filterCategory ? "" : categories[0]?._id ?? ""))}><SlidersHorizontal size={15} />Filter</button>}{page === "overview" && <button className="text-link" onClick={() => setPage("transactions")}>View all <ArrowRight size={14} /></button>}</div></div>
                 {page === "transactions" && <div className="filters-row">
-                  <label><Tag size={14} /><select aria-label="Filter by category" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}><option value="">All categories</option>{categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}</select></label>
-                  <label><CreditCard size={14} /><select aria-label="Filter by payment method" value={filterMethod} onChange={e => setFilterMethod(e.target.value)}><option value="">All payment methods</option>{["cash", "card", "bank transfer", "mobile money", "other"].map(method => <option key={method} value={method}>{method}</option>)}</select></label>
-                  <label><ArrowDownUp size={14} /><select aria-label="Sort expenses" value={sort} onChange={e => setSort(e.target.value as "date" | "amount")}><option value="date">Sort by date</option><option value="amount">Sort by amount</option></select></label>
-                  <label className="filter-input"><span>From</span><input aria-label="From date" type="date" value={filterFrom} onChange={e => setFilterFrom(e.target.value)} /></label>
-                  <label className="filter-input"><span>To</span><input aria-label="To date" type="date" value={filterTo} onChange={e => setFilterTo(e.target.value)} /></label>
-                  <label className="filter-input"><span>Min RWF</span><input aria-label="Minimum amount" type="number" min="0" value={filterMinAmount} onChange={e => setFilterMinAmount(e.target.value)} /></label>
-                  <label className="filter-input"><span>Max RWF</span><input aria-label="Maximum amount" type="number" min="0" value={filterMaxAmount} onChange={e => setFilterMaxAmount(e.target.value)} /></label>
+                  <label><Tag size={14} /><select aria-label="Filter by category" value={filterCategory} onChange={e => dispatch(setFilterCategory(e.target.value))}><option value="">All categories</option>{categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}</select></label>
+                  <label><CreditCard size={14} /><select aria-label="Filter by payment method" value={filterMethod} onChange={e => dispatch(setFilterMethod(e.target.value))}><option value="">All payment methods</option>{["cash", "card", "bank transfer", "mobile money", "other"].map(method => <option key={method} value={method}>{method}</option>)}</select></label>
+                  <label><ArrowDownUp size={14} /><select aria-label="Sort expenses" value={sort} onChange={e => dispatch(setSort(e.target.value as "date" | "amount"))}><option value="date">Sort by date</option><option value="amount">Sort by amount</option></select></label>
+                  <label className="filter-input"><span>From</span><input aria-label="From date" type="date" value={filterFrom} onChange={e => dispatch(setFilterFrom(e.target.value))} /></label>
+                  <label className="filter-input"><span>To</span><input aria-label="To date" type="date" value={filterTo} onChange={e => dispatch(setFilterTo(e.target.value))} /></label>
+                  <label className="filter-input"><span>Min RWF</span><input aria-label="Minimum amount" type="number" min="0" value={filterMinAmount} onChange={e => dispatch(setFilterMinAmount(e.target.value))} /></label>
+                  <label className="filter-input"><span>Max RWF</span><input aria-label="Maximum amount" type="number" min="0" value={filterMaxAmount} onChange={e => dispatch(setFilterMaxAmount(e.target.value))} /></label>
                 </div>}
                 <Transactions expenses={expenses?.expenses ?? []} loading={loading} onEdit={openNewExpense} onDelete={deleteExpense} />
                 {expenses && expenses.pagination.pages > 1 && <div className="pagination"><span>Showing {(pageNumber - 1) * expenses.pagination.limit + 1}–{Math.min(pageNumber * expenses.pagination.limit, expenses.pagination.total)} of {expenses.pagination.total}</span><div><button disabled={pageNumber <= 1} onClick={() => setPageNumber(pageNumber - 1)} aria-label="Previous page"><ArrowLeft size={15} /></button><span className="page-current">{pageNumber}</span><button disabled={pageNumber >= expenses.pagination.pages} onClick={() => setPageNumber(pageNumber + 1)} aria-label="Next page"><ArrowRight size={15} /></button></div></div>}
@@ -444,6 +448,14 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-head"><div><p className="eyebrow">A LITTLE MORE CLARITY</p><h2 id="modal-title">{title}</h2></div><button className="icon-button modal-close" aria-label="Close" onClick={onClose}><X size={18} /></button></div>{children}</section></div>;
+}
+
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user || user.role !== "admin") {
+    return <div className="empty-state"><strong>Admin access required.</strong></div>;
+  }
+  return <>{children}</>;
 }
 
 export default App;
