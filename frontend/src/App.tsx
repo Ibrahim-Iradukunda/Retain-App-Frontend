@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -35,6 +35,7 @@ const blankExpense = {
 
 function App() {
   const { user, token, signIn: setAuth, signOut: clearAuth } = useAuth();
+  const accountMenuRef = useRef<HTMLDetailsElement>(null);
   const dispatch = useDispatch<AppDispatch>();
   const { search, filterCategory, filterMethod, filterFrom, filterTo, filterMinAmount, filterMaxAmount, sort } =
     useSelector((state: RootState) => state.expenseFilters);
@@ -54,6 +55,17 @@ function App() {
   const [authForm, setAuthForm] = useState({ name: "", email: "", password: "" });
   const [admin, setAdmin] = useState<AdminInsights | null>(null);
   const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    function closeAccountMenu(event: MouseEvent) {
+      if (event.target instanceof Node && !accountMenuRef.current?.contains(event.target)) {
+        accountMenuRef.current?.removeAttribute("open");
+      }
+    }
+
+    document.addEventListener("click", closeAccountMenu);
+    return () => document.removeEventListener("click", closeAccountMenu);
+  }, []);
 
   const showError = (error: unknown) => {
     setNotice(error instanceof Error ? error.message : "Something went wrong. Please try again.");
@@ -264,7 +276,7 @@ function App() {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb">My workspace <span>/</span> <strong>{page === "overview" ? "Overview" : page === "transactions" ? "Transactions" : page === "budgets" ? "Budgets" : "Admin insights"}</strong></div>
-          <div className="top-actions"><span className="today-label"><span className="online-dot" /> All data up to date</span><button className="top-icon" aria-label="Notifications"><Bell size={17} /><i /></button><details className="account-menu"><summary className="avatar avatar-small" aria-label="Open profile menu" title="Profile">{user.name.slice(0, 1).toUpperCase()}</summary><div className="account-panel"><strong>{user.name}</strong><span>{user.email}</span><span>{user.role === "admin" ? "Administrator" : "Personal account"}</span><button type="button" onClick={signOut}><LogOut size={14} />Sign out</button></div></details></div>
+          <div className="top-actions"><span className="today-label"><span className="online-dot" /> All data up to date</span><button className="top-icon" aria-label="Notifications"><Bell size={17} /><i /></button><details ref={accountMenuRef} className="account-menu"><summary className="avatar avatar-small" aria-label="Open profile menu" title="Profile">{user.name.slice(0, 1).toUpperCase()}</summary><div className="account-panel"><strong>{user.name}</strong><span>{user.email}</span><span>{user.role === "admin" ? "Administrator" : "Personal account"}</span><button type="button" onClick={signOut}><LogOut size={14} />Sign out</button></div></details></div>
         </header>
         <div className="content">
           {page === "admin" ? (
