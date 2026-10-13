@@ -40,7 +40,6 @@ function App() {
   const { search, filterCategory, filterMethod, filterFrom, filterTo, filterMinAmount, filterMaxAmount, sort } =
     useSelector((state: RootState) => state.expenseFilters);
   const [page, setPage] = useState<"overview" | "transactions" | "budgets" | "admin">("overview");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [month, setMonth] = useState(initialMonth);
   const [dashboard, setDashboard] = useState<Dashboard | null>(null);
   const [expenses, setExpenses] = useState<ExpenseList | null>(null);
@@ -297,8 +296,8 @@ function App() {
               </div>
               {page === "overview" && <OverviewCards dashboard={dashboard} budgetPercent={budgetPercent} onBudget={() => { setBudgetInput(String(dashboard?.budget || "")); setModal("budget"); }} />}
               <section className="section-block">
-                <div className="section-heading"><div><h2>{page === "overview" ? "Recent transactions" : "All transactions"} <span className="count-pill">{expenses?.pagination.total ?? 0}</span></h2><p>{page === "overview" ? "The latest activity in your account." : "Your personal spending history."}</p></div><div className="table-actions"><div className="search-box"><Search size={15} /><input aria-label="Search expenses" placeholder="Search expenses..." value={search} onChange={e => dispatch(setSearch(e.target.value))} /></div>{page === "transactions" && <button className="filter-button" aria-expanded={filtersOpen} aria-controls="expense-filters" onClick={() => setFiltersOpen(open => !open)}><SlidersHorizontal size={15} />Filter</button>}{page === "overview" && <button className="text-link" onClick={() => setPage("transactions")}>View all <ArrowRight size={14} /></button>}</div></div>
-                {page === "transactions" && filtersOpen && <div className="filters-row" id="expense-filters">
+                <div className="section-heading"><div><h2>{page === "overview" ? "Recent transactions" : "All transactions"} <span className="count-pill">{expenses?.pagination.total ?? 0}</span></h2><p>{page === "overview" ? "The latest activity in your account." : "Your personal spending history."}</p></div><div className="table-actions"><div className="search-box"><Search size={15} /><input aria-label="Search expenses" placeholder="Search expenses..." value={search} onChange={e => dispatch(setSearch(e.target.value))} /></div>{page === "transactions" && <button className="filter-button" onClick={() => dispatch(setFilterCategory(filterCategory ? "" : categories[0]?._id ?? ""))}><SlidersHorizontal size={15} />Filter</button>}{page === "overview" && <button className="text-link" onClick={() => setPage("transactions")}>View all <ArrowRight size={14} /></button>}</div></div>
+                {page === "transactions" && <div className="filters-row">
                   <label><Tag size={14} /><select aria-label="Filter by category" value={filterCategory} onChange={e => dispatch(setFilterCategory(e.target.value))}><option value="">All categories</option>{categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}</select></label>
                   <label><CreditCard size={14} /><select aria-label="Filter by payment method" value={filterMethod} onChange={e => dispatch(setFilterMethod(e.target.value))}><option value="">All payment methods</option>{["cash", "card", "bank transfer", "mobile money", "other"].map(method => <option key={method} value={method}>{method}</option>)}</select></label>
                   <label><ArrowDownUp size={14} /><select aria-label="Sort expenses" value={sort} onChange={e => dispatch(setSort(e.target.value as "date" | "amount"))}><option value="date">Sort by date</option><option value="amount">Sort by amount</option></select></label>
