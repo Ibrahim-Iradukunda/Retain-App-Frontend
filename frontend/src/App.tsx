@@ -264,7 +264,7 @@ function App() {
       <main className="main-area">
         <header className="topbar">
           <div className="breadcrumb">My workspace <span>/</span> <strong>{page === "overview" ? "Overview" : page === "transactions" ? "Transactions" : page === "budgets" ? "Budgets" : "Admin insights"}</strong></div>
-          <div className="top-actions"><span className="today-label"><span className="online-dot" /> All data up to date</span><button className="top-icon" aria-label="Notifications"><Bell size={17} /><i /></button><div className="avatar avatar-small">{user.name.slice(0, 1).toUpperCase()}</div></div>
+          <div className="top-actions"><span className="today-label"><span className="online-dot" /> All data up to date</span><button className="top-icon" aria-label="Notifications"><Bell size={17} /><i /></button><details className="account-menu"><summary className="avatar avatar-small" aria-label="Open profile menu" title="Profile">{user.name.slice(0, 1).toUpperCase()}</summary><div className="account-panel"><strong>{user.name}</strong><span>{user.email}</span><span>{user.role === "admin" ? "Administrator" : "Personal account"}</span><button type="button" onClick={signOut}><LogOut size={14} />Sign out</button></div></details></div>
         </header>
         <div className="content">
           {page === "admin" ? (
